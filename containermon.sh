@@ -38,6 +38,7 @@ for c in $CONTAINERS; do
 	# CPU cycles in jiffies (10ms)
 	DS="DS:user_jif:COUNTER:120:U:U "
 	DS+="DS:system_jif:COUNTER:120:U:U "
+        DS+="DS:rss:GAUGE:120:U:U "
 	
 	rrdtool create "$RRD" --start 1300000000 --step 60 \
 		${DS} \
@@ -58,7 +59,6 @@ done
 #
 for c in $CONTAINERS; do
     RRD="$DATADIR/$c.rrd"
-    F="$CGROUPFS/cpu,cpuacct/lxc/$c/cpuacct.stat"
     USER=0
     SYSTEM=0
     while read LINE; do
@@ -69,17 +69,25 @@ for c in $CONTAINERS; do
 	if [ ${SPLIT[0]} == "system" ]; then
 	    SYSTEM=${SPLIT[1]}
 	fi
-    done < "$F"
+    done < "$CGROUPFS/cpuacct/lxc/$c/cpuacct.stat"
 
-    #echo Container $c: user=$USER system=$SYSTEM
+    RSS=0
+    while read LINE; do
+	SPLIT=($LINE)
+	if [ ${SPLIT[0]} == "total_rss" ]; then
+	    RSS=${SPLIT[1]}
+	fi
+    done < "$CGROUPFS/memory/lxc/$c/memory.stat"
 
-    rrdtool update "$RRD" -t user_jif:system_jif -- N:$USER:$SYSTEM
+    #echo Container $c: user=$USER system=$SYSTEM RSS=$RSS
+
+    rrdtool update "$RRD" -t user_jif:system_jif:rss -- N:$USER:$SYSTEM:$RSS
 done
 
 #
 # Plot the RRDs
 #
-HTML=$(tempfile)
+HTML=$(tempfile -m 644)
 cat > $HTML <<EOF
 <html><head><title>Container stats for $HOSTNAME</title></head>
 <body style="background: black; color: white;">
@@ -87,6 +95,7 @@ cat > $HTML <<EOF
 EOF
 
 for RRD in $DATADIR/*.rrd; do
+    BASENAME=$(basename -s .rrd $RRD)
     export LANG=en_US.UTF-8
     WIDTH=768
     HEIGHT=256
@@ -97,21 +106,30 @@ for RRD in $DATADIR/*.rrd; do
     COMMON_OPTS+="--color GRID#444444 --color MGRID#aaaaaa"
 
     # Jiffies (100Hz unit) neatly corresponds to % CPU load when graphed
-    rrdtool graph "$PLOTDIR/$(basename -s .rrd $RRD).png" \
-	    -t "CPU load $(basename -s .rrd $RRD)" \
+    rrdtool graph "$PLOTDIR/$BASENAME-cpu.png" \
+	    -t "CPU load $BASENAME [%]" \
 	    ${COMMON_OPTS} \
 	    --lower-limit 0 \
 	    --rigid \
 	    --full-size-mode \
-	    --left-axis-format "%.0lf%%" \
 	    -E --end now --start now-8h --width ${WIDTH} --height ${HEIGHT} \
 	    DEF:user_jif=$RRD:user_jif:AVERAGE \
 	    DEF:system_jif=$RRD:system_jif:AVERAGE \
 	    AREA:user_jif#bb6622:"User" \
 	    LINE1:system_jif#4488ee:"System"
 
+    rrdtool graph "$PLOTDIR/$BASENAME-ram.png" \
+	    -t "RAM usage $BASENAME" \
+	    ${COMMON_OPTS} \
+	    --lower-limit 0 \
+	    --rigid \
+	    --full-size-mode \
+	    -E --end now --start now-8h --width ${WIDTH} --height ${HEIGHT} \
+	    DEF:ram=$RRD:rss:MAX \
+	    AREA:ram#6622bb:"User"
+
     cat >> $HTML <<EOF
-<img src="$(basename -s .rrd $RRD).png"/>
+<img src="$BASENAME-cpu.png"/><img src="$BASENAME-ram.png"/>
 EOF
 done
 
