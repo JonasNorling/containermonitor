@@ -11,6 +11,9 @@ DATADIR="$PWD/data"
 PLOTDIR="$PWD/plot"
 mkdir -p "$DATADIR" "$PLOTDIR"
 
+COLOR_ARRAY=(4488ee ee4488 88ee44 bb6622 6622bb 22bb66)
+COLOR_ARRAY_LEN=${#COLOR_ARRAY[@]}
+
 #
 # Find LXC containers
 #
@@ -122,8 +125,8 @@ for rrd in $RRDS; do
 	    -E --end now --start now-8h --width ${WIDTH} --height ${HEIGHT} \
 	    DEF:user_jif=$RRD:user_jif:AVERAGE \
 	    DEF:system_jif=$RRD:system_jif:AVERAGE \
-	    AREA:user_jif#bb6622:"User" \
-	    LINE1:system_jif#4488ee:"System"
+	    AREA:system_jif#4488ee:"System" \
+	    AREA:user_jif#bb6622:"User":STACK
 
     rrdtool graph "$PLOTDIR/$rrd-ram.png" \
 	    -t "RAM usage $rrd" \
@@ -142,12 +145,14 @@ done
 
 # Draw a summary graph
 DEFS=
+color=0
 for rrd in $RRDS; do
     RRD="$DATADIR/$rrd.rrd"
     DEFS+="DEF:${rrd}_user=$RRD:user_jif:AVERAGE "
     DEFS+="DEF:${rrd}_system=$RRD:system_jif:AVERAGE "
     DEFS+="CDEF:${rrd}_cpu=${rrd}_user,${rrd}_system,+ "
-    LINES+="AREA:${rrd}_cpu#ffffaa:\"$rrd\":STACK "
+    LINES+="AREA:${rrd}_cpu#${COLOR_ARRAY[color]}:$rrd:STACK "
+    ((color=(color+1)%6))
 done
 rrdtool graph "$PLOTDIR/cpu-1d.png" \
 	-t "CPU load containers on $HOSTNAME [%]" \
