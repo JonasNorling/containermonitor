@@ -97,7 +97,8 @@ HTML=$(tempfile -m 644)
 cat > $HTML <<EOF
 <html><head><title>Container stats for $HOSTNAME</title></head>
 <body style="background: black; color: white;">
-<p>Container stats for $HOSTNAME Updated at $(date)</p>
+<p>Container stats for $HOSTNAME Updated at $(date)<br/>
+$(uptime)</p>
 EOF
 
 for rrd in $RRDS; do
