@@ -54,6 +54,12 @@ for c in $CONTAINERS; do
     fi
 done
 
+# Make a list of databases, just the basename
+RRDS=
+for rrd in $DATADIR/*.rrd; do
+    RRDS+="$(basename -s .rrd $rrd) "
+done
+
 #
 # Add current data for each container
 #
@@ -94,8 +100,8 @@ cat > $HTML <<EOF
 <p>Container stats for $HOSTNAME Updated at $(date)</p>
 EOF
 
-for RRD in $DATADIR/*.rrd; do
-    BASENAME=$(basename -s .rrd $RRD)
+for rrd in $RRDS; do
+    RRD="$DATADIR/$rrd.rrd"
     export LANG=en_US.UTF-8
     WIDTH=768
     HEIGHT=256
@@ -106,8 +112,8 @@ for RRD in $DATADIR/*.rrd; do
     COMMON_OPTS+="--color GRID#444444 --color MGRID#aaaaaa"
 
     # Jiffies (100Hz unit) neatly corresponds to % CPU load when graphed
-    rrdtool graph "$PLOTDIR/$BASENAME-cpu.png" \
-	    -t "CPU load $BASENAME [%]" \
+    rrdtool graph "$PLOTDIR/$rrd-cpu.png" \
+	    -t "CPU load $rrd [%]" \
 	    ${COMMON_OPTS} \
 	    --lower-limit 0 \
 	    --rigid \
@@ -118,8 +124,8 @@ for RRD in $DATADIR/*.rrd; do
 	    AREA:user_jif#bb6622:"User" \
 	    LINE1:system_jif#4488ee:"System"
 
-    rrdtool graph "$PLOTDIR/$BASENAME-ram.png" \
-	    -t "RAM usage $BASENAME" \
+    rrdtool graph "$PLOTDIR/$rrd-ram.png" \
+	    -t "RAM usage $rrd" \
 	    ${COMMON_OPTS} \
 	    --lower-limit 0 \
 	    --rigid \
@@ -129,9 +135,33 @@ for RRD in $DATADIR/*.rrd; do
 	    AREA:ram#6622bb:"User"
 
     cat >> $HTML <<EOF
-<img src="$BASENAME-cpu.png"/><img src="$BASENAME-ram.png"/>
+<img src="$rrd-cpu.png"/><img src="$rrd-ram.png"/>
 EOF
 done
+
+# Draw a summary graph
+DEFS=
+for rrd in $RRDS; do
+    RRD="$DATADIR/$rrd.rrd"
+    DEFS+="DEF:${rrd}_user=$RRD:user_jif:AVERAGE "
+    DEFS+="DEF:${rrd}_system=$RRD:system_jif:AVERAGE "
+    DEFS+="CDEF:${rrd}_cpu=${rrd}_user,${rrd}_system,+ "
+    LINES+="AREA:${rrd}_cpu#ffffaa:\"$rrd\":STACK "
+done
+rrdtool graph "$PLOTDIR/cpu-1d.png" \
+	-t "CPU load containers on $HOSTNAME [%]" \
+	${COMMON_OPTS} \
+	--lower-limit 0 \
+	--rigid \
+	--full-size-mode \
+	-E --end now --start now-24h --width ${WIDTH} --height ${HEIGHT} \
+	$DEFS \
+	$LINES
+
+cat >> $HTML <<EOF
+<hr/>
+<img src="cpu-1d.png"/>
+EOF
 
 cat >> $HTML <<EOF
 </body>
