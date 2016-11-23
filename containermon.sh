@@ -1,6 +1,7 @@
 #!/bin/bash -e
-# Extract stastics from the cgroup filesystem for each LXC container and feed
-# it to an RRD. The current working directory is used to find the RRDs.
+# Extract stastics from the cgroup filesystem for each LXC and Docker
+# container and feed it to an RRD. The current working directory is
+# used to find the RRDs.
 #
 # Known issues:
 #   - container names cannot contain a space (can they?)
@@ -15,11 +16,11 @@ COLOR_ARRAY=(4488ee ee4488 88ee44 bb6622 6622bb 22bb66)
 COLOR_ARRAY_LEN=${#COLOR_ARRAY[@]}
 
 #
-# Find LXC containers
+# Find LXC and Docker containers
 #
 CONTAINERS=
-for d in $CGROUPFS/cpu/lxc/*/; do
-    CONTAINERS+="$(basename $d) "
+for d in $CGROUPFS/cpu/{lxc,docker}/*/; do
+    [ -d "$d" ] && CONTAINERS+="$(basename $d) "
 done
 #echo Found containers: $CONTAINERS
 
@@ -78,7 +79,7 @@ for c in $CONTAINERS; do
 	if [ ${SPLIT[0]} == "system" ]; then
 	    SYSTEM=${SPLIT[1]}
 	fi
-    done < "$CGROUPFS/cpuacct/lxc/$c/cpuacct.stat"
+    done < $CGROUPFS/cpuacct/*/$c/cpuacct.stat
 
     RSS=0
     while read LINE; do
@@ -86,7 +87,7 @@ for c in $CONTAINERS; do
 	if [ ${SPLIT[0]} == "total_rss" ]; then
 	    RSS=${SPLIT[1]}
 	fi
-    done < "$CGROUPFS/memory/lxc/$c/memory.stat"
+    done < $CGROUPFS/memory/*/$c/memory.stat
 
     #echo Container $c: user=$USER system=$SYSTEM RSS=$RSS
 
