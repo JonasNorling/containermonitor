@@ -12,7 +12,7 @@ DATADIR="$PWD/data"
 PLOTDIR="$PWD/plot"
 mkdir -p "$DATADIR" "$PLOTDIR"
 
-COLOR_ARRAY=(4488ee ee4488 88ee44 bb6622 6622bb 22bb66)
+COLOR_ARRAY=(4488ee ee4488 88ee44 bb6622 6622bb 22bb66 2222ee 22ee22 ee2222)
 COLOR_ARRAY_LEN=${#COLOR_ARRAY[@]}
 
 #
@@ -145,15 +145,17 @@ EOF
 done
 
 # Draw a summary graph
-DEFS=
+CPUDEFS=
 color=0
 for rrd in $RRDS; do
     RRD="$DATADIR/$rrd.rrd"
-    DEFS+="DEF:${rrd}_user=$RRD:user_jif:AVERAGE "
-    DEFS+="DEF:${rrd}_system=$RRD:system_jif:AVERAGE "
-    DEFS+="CDEF:${rrd}_cpu=${rrd}_user,${rrd}_system,+ "
-    LINES+="AREA:${rrd}_cpu#${COLOR_ARRAY[color]}:$rrd:STACK "
-    ((color=(color+1)%6))
+    CPUDEFS+="DEF:${rrd}_user=$RRD:user_jif:AVERAGE "
+    CPUDEFS+="DEF:${rrd}_system=$RRD:system_jif:AVERAGE "
+    CPUDEFS+="CDEF:${rrd}_cpu=${rrd}_user,${rrd}_system,+ "
+    CPULINES+="AREA:${rrd}_cpu#${COLOR_ARRAY[color]}:$rrd:STACK "
+    RAMDEFS+="DEF:${rrd}_ram=$RRD:rss:MAX "
+    RAMLINES+="AREA:${rrd}_ram#${COLOR_ARRAY[color]}:$rrd:STACK "
+    ((color=(color+1)%COLOR_ARRAY_LEN)) || true
 done
 rrdtool graph "$PLOTDIR/cpu-1d.png" \
 	-t "CPU load containers on $HOSTNAME [%]" \
@@ -162,12 +164,21 @@ rrdtool graph "$PLOTDIR/cpu-1d.png" \
 	--rigid \
 	--full-size-mode \
 	-E --end now --start now-24h --width ${WIDTH} --height ${HEIGHT} \
-	$DEFS \
-	$LINES
+	$CPUDEFS \
+	$CPULINES
+rrdtool graph "$PLOTDIR/ram-1d.png" \
+	-t "RAM usage containers on $HOSTNAME" \
+	${COMMON_OPTS} \
+	--lower-limit 0 \
+	--rigid \
+	--full-size-mode \
+	-E --end now --start now-24h --width ${WIDTH} --height ${HEIGHT} \
+	$RAMDEFS \
+	$RAMLINES
 
 cat >> $HTML <<EOF
 <hr/>
-<img src="cpu-1d.png"/>
+<img src="cpu-1d.png"/><img src="ram-1d.png"/>
 EOF
 
 cat >> $HTML <<EOF
