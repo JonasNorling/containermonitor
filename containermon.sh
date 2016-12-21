@@ -40,8 +40,8 @@ for c in $CONTAINERS; do
 	LOW_RES_SAMPLES=87600
 	
 	# CPU cycles in jiffies (10ms)
-	DS="DS:user_jif:COUNTER:120:U:U "
-	DS+="DS:system_jif:COUNTER:120:U:U "
+	DS="DS:user_jif:COUNTER:120:0:6400 "
+	DS+="DS:system_jif:COUNTER:120:0:6400 "
         DS+="DS:rss:GAUGE:120:U:U "
 	
 	rrdtool create "$RRD" --start 1300000000 --step 60 \
