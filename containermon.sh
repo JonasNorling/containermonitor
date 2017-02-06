@@ -127,7 +127,7 @@ for rrd in $RRDS; do
 	    DEF:user_jif=$RRD:user_jif:AVERAGE \
 	    DEF:system_jif=$RRD:system_jif:AVERAGE \
 	    AREA:system_jif#4488ee:"System" \
-	    AREA:user_jif#bb6622:"User":STACK
+	    AREA:user_jif#bb6622:"User":STACK > /dev/null
 
     rrdtool graph "$PLOTDIR/$rrd-ram.png" \
 	    -t "RAM usage $rrd" \
@@ -137,7 +137,7 @@ for rrd in $RRDS; do
 	    --full-size-mode \
 	    -E --end now --start now-8h --width ${WIDTH} --height ${HEIGHT} \
 	    DEF:ram=$RRD:rss:MAX \
-	    AREA:ram#6622bb:"User"
+	    AREA:ram#6622bb:"User" > /dev/null
 
     cat >> $HTML <<EOF
 <img src="$rrd-cpu.png"/><img src="$rrd-ram.png"/>
@@ -165,7 +165,7 @@ rrdtool graph "$PLOTDIR/cpu-1d.png" \
 	--full-size-mode \
 	-E --end now --start now-24h --width ${WIDTH} --height ${HEIGHT} \
 	$CPUDEFS \
-	$CPULINES
+	$CPULINES > /dev/null
 rrdtool graph "$PLOTDIR/ram-1d.png" \
 	-t "RAM usage containers on $HOSTNAME" \
 	${COMMON_OPTS} \
@@ -174,7 +174,7 @@ rrdtool graph "$PLOTDIR/ram-1d.png" \
 	--full-size-mode \
 	-E --end now --start now-24h --width ${WIDTH} --height ${HEIGHT} \
 	$RAMDEFS \
-	$RAMLINES
+	$RAMLINES > /dev/null
 
 cat >> $HTML <<EOF
 <hr/>
