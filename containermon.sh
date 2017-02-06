@@ -148,13 +148,14 @@ done
 CPUDEFS=
 color=0
 for rrd in $RRDS; do
+    escname=$(echo "$rrd" | tr - _)
     RRD="$DATADIR/$rrd.rrd"
-    CPUDEFS+="DEF:${rrd}_user=$RRD:user_jif:AVERAGE "
-    CPUDEFS+="DEF:${rrd}_system=$RRD:system_jif:AVERAGE "
-    CPUDEFS+="CDEF:${rrd}_cpu=${rrd}_user,${rrd}_system,+ "
-    CPULINES+="AREA:${rrd}_cpu#${COLOR_ARRAY[color]}:$rrd:STACK "
-    RAMDEFS+="DEF:${rrd}_ram=$RRD:rss:MAX "
-    RAMLINES+="AREA:${rrd}_ram#${COLOR_ARRAY[color]}:$rrd:STACK "
+    CPUDEFS+="DEF:${escname}_user=$RRD:user_jif:AVERAGE "
+    CPUDEFS+="DEF:${escname}_system=$RRD:system_jif:AVERAGE "
+    CPUDEFS+="CDEF:${escname}_cpu=${escname}_user,${escname}_system,+ "
+    CPULINES+="AREA:${escname}_cpu#${COLOR_ARRAY[color]}:$escname:STACK "
+    RAMDEFS+="DEF:${escname}_ram=$RRD:rss:MAX "
+    RAMLINES+="AREA:${escname}_ram#${COLOR_ARRAY[color]}:$escname:STACK "
     ((color=(color+1)%COLOR_ARRAY_LEN)) || true
 done
 rrdtool graph "$PLOTDIR/cpu-1d.png" \
