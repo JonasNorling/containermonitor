@@ -73,10 +73,10 @@ for c in $CONTAINERS; do
     SYSTEM=0
     while read LINE; do
 	SPLIT=($LINE)
-	if [ ${SPLIT[0]} == "user" ]; then
+	if [ "${SPLIT[0]}" == "user" ]; then
 	    USER=${SPLIT[1]}
 	fi
-	if [ ${SPLIT[0]} == "system" ]; then
+	if [ "${SPLIT[0]}" == "system" ]; then
 	    SYSTEM=${SPLIT[1]}
 	fi
     done < $CGROUPFS/cpuacct/*/$c/cpuacct.stat
@@ -84,7 +84,7 @@ for c in $CONTAINERS; do
     RSS=0
     while read LINE; do
 	SPLIT=($LINE)
-	if [ ${SPLIT[0]} == "total_rss" ]; then
+	if [ "${SPLIT[0]}" == "total_rss" ]; then
 	    RSS=${SPLIT[1]}
 	fi
     done < $CGROUPFS/memory/*/$c/memory.stat
