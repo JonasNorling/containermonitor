@@ -1,5 +1,6 @@
 #!/bin/bash -e
-# Extract stastics from the cgroup filesystem for each LXC and Docker
+#
+# Extract statistics from the cgroup filesystem for each LXC and Docker
 # container and feed it to an RRD. The current working directory is
 # used to find the RRDs.
 #
@@ -100,9 +101,9 @@ done
 HTML=$(tempfile -m 644)
 cat > $HTML <<EOF
 <html><head><title>Container stats for $HOSTNAME</title></head>
-<body style="background: black; color: white;">
+<body style="background: black; color: white; width: 1560px;">
 <p>Container stats for $HOSTNAME Updated at $(date)<br/>
-$(uptime)</p>
+Uptime: $(uptime)</p>
 EOF
 
 for rrd in $RRDS; do
