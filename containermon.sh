@@ -14,7 +14,7 @@ HOSTDATADIR="$PWD/hostdata"
 PLOTDIR="$PWD/plot"
 mkdir -p "$DATADIR" "$HOSTDATADIR" "$PLOTDIR"
 
-COLOR_ARRAY=(4488ee ee4488 88ee44 bb6622 6622bb 22bb66 2222ee 22ee22 ee2222)
+COLOR_ARRAY=(4488ee ee4488 88ee44 bb6622 6622bb 009922 002299 666666 990022 eeeeee)
 COLOR_ARRAY_LEN=${#COLOR_ARRAY[@]}
 
 #
@@ -90,7 +90,7 @@ fi
 
 # Make a list of databases, just the basename
 RRDS=
-for rrd in $DATADIR/*.rrd; do
+for rrd in $(find $DATADIR/ -name *.rrd -ctime -1 | sort); do
     RRDS+="$(basename -s .rrd $rrd) "
 done
 
