@@ -88,6 +88,33 @@ if [ ! -f "$HOSTDATADIR/disk.rrd" ]; then
 	    RRA:MIN:0.5:60:${LOW_RES_SAMPLES}
 fi
 
+if [ ! -f "$HOSTDATADIR/host.rrd" ]; then
+    RRD="$HOSTDATADIR/host.rrd"
+    # 4 weeks with minute level data
+    HIGH_RES_SAMPLES=40320
+    # 365 days with ten minute level data
+    MED_RES_SAMPLES=52560
+    # ten years with hour level data
+    LOW_RES_SAMPLES=87600
+
+    # CPU cycles in jiffies (10ms)
+    DS="DS:user_jif:COUNTER:120:0:6400 "
+    DS+="DS:system_jif:COUNTER:120:0:6400 "
+    DS+="DS:rss:GAUGE:120:U:U "
+
+    rrdtool create "$RRD" --start 1300000000 --step 60 \
+	    ${DS} \
+	    RRA:AVERAGE:0.5:1:${HIGH_RES_SAMPLES} \
+	    RRA:AVERAGE:0.5:10:${MED_RES_SAMPLES} \
+	    RRA:AVERAGE:0.5:60:${LOW_RES_SAMPLES} \
+	    RRA:MAX:0.5:1:${HIGH_RES_SAMPLES} \
+	    RRA:MAX:0.5:10:${MED_RES_SAMPLES} \
+	    RRA:MAX:0.5:60:${LOW_RES_SAMPLES} \
+	    RRA:MIN:0.5:1:${HIGH_RES_SAMPLES} \
+	    RRA:MIN:0.5:10:${MED_RES_SAMPLES} \
+	    RRA:MIN:0.5:60:${LOW_RES_SAMPLES}
+fi
+
 # Make a list of databases, just the basename
 RRDS=
 for rrd in $(find $DATADIR/ -name *.rrd -ctime -1 | sort); do
@@ -143,6 +170,29 @@ done < /proc/diskstats
 rrdtool update "$HOSTDATADIR/disk.rrd" -t rd_sectors:rd_ms:wr_sectors:wr_ms -- \
 	N:$RD_SECTORS:$RD_MS:$WR_SECTORS:$WR_MS
 
+# Add host CPU and RAM data
+USER=0
+SYSTEM=0
+while read LINE; do
+    SPLIT=($LINE)
+    if [ "${SPLIT[0]}" == "user" ]; then
+	USER=${SPLIT[1]}
+    fi
+    if [ "${SPLIT[0]}" == "system" ]; then
+	SYSTEM=${SPLIT[1]}
+    fi
+done < $CGROUPFS/cpuacct/cpuacct.stat
+
+RSS=0
+while read LINE; do
+    SPLIT=($LINE)
+    if [ "${SPLIT[0]}" == "total_rss" ]; then
+	RSS=${SPLIT[1]}
+    fi
+done < $CGROUPFS/memory/memory.stat
+
+rrdtool update "$HOSTDATADIR/host.rrd" -t user_jif:system_jif:rss -- N:$USER:$SYSTEM:$RSS
+
 #
 # Plot the RRDs
 #
@@ -161,7 +211,8 @@ BG=000000
 FG=ffffff
 COMMON_OPTS="--color SHADEA#${BG} --color SHADEB#${BG} --color BACK#${BG} --color CANVAS#${BG} "
 COMMON_OPTS+="--color FONT#${FG} --color AXIS#${FG} --color ARROW#${FG} "
-COMMON_OPTS+="--color GRID#444444 --color MGRID#aaaaaa"
+COMMON_OPTS+="--color GRID#444444 --color MGRID#aaaaaa "
+COMMON_OPTS+="--lazy "
 
 for rrd in $RRDS; do
     RRD="$DATADIR/$rrd.rrd"
@@ -208,13 +259,23 @@ for rrd in $RRDS; do
     RAMLINES+="AREA:${escname}_ram#${COLOR_ARRAY[color]}:$escname:STACK "
     ((color=(color+1)%COLOR_ARRAY_LEN)) || true
 done
+
+# Add host statistics
+HOSTRRD="$HOSTDATADIR/host.rrd"
+CPUDEFS+="DEF:host_user=${HOSTRRD}:user_jif:AVERAGE "
+CPUDEFS+="DEF:host_system=${HOSTRRD}:system_jif:AVERAGE "
+CPUDEFS+="CDEF:host_cpu=host_user,host_system,+ "
+CPULINES+="LINE:host_cpu#ffffffff:Host-CPU "
+RAMDEFS+="DEF:host_ram=${HOSTRRD}:rss:MAX "
+RAMLINES+="LINE:host_ram#ffffffff:Host-RSS "
+
 rrdtool graph "$PLOTDIR/cpu-1d.png" \
 	-t "CPU load containers on $HOSTNAME [%]" \
 	${COMMON_OPTS} \
 	--lower-limit 0 \
 	--rigid \
 	--full-size-mode \
-	-E --end now --start now-24h --width ${WIDTH} --height ${HEIGHT} \
+	-E --end now --start now-24h --width ${WIDTH} --height $((HEIGHT+128))  \
 	$CPUDEFS \
 	$CPULINES > /dev/null
 rrdtool graph "$PLOTDIR/ram-1d.png" \
@@ -223,7 +284,7 @@ rrdtool graph "$PLOTDIR/ram-1d.png" \
 	--lower-limit 0 \
 	--rigid \
 	--full-size-mode \
-	-E --end now --start now-24h --width ${WIDTH} --height ${HEIGHT} \
+	-E --end now --start now-24h --width ${WIDTH} --height $((HEIGHT+128)) \
 	$RAMDEFS \
 	$RAMLINES > /dev/null
 
